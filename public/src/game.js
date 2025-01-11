@@ -11,7 +11,9 @@ let stars;
 let cursors;
 let human;
 let aliens;
-let arrow;
+let arrows;
+let hearts;
+let lives = 3; // מספר הלבבות (חיים)
 
 function preload() {
     game.load.image('human', './images/human_temp.png', { crossOrigin: 'anonymous' });
@@ -19,6 +21,7 @@ function preload() {
     game.load.image('star', './images/star.png', { crossOrigin: 'anonymous' });
     game.load.image('alien', './images/alien.png', { crossOrigin: 'anonymous' });
     game.load.image('arrow', './images/arrow.png', { crossOrigin: 'anonymous' });
+    game.load.image('heart', './images/heart.png', { crossOrigin: 'anonymous' });
 }
 
 function create() {
@@ -29,23 +32,39 @@ function create() {
     blocks = game.add.group();
     blocks.enableBody = true;
 
-    const ground = blocks.create(0, game.world.height - 64, 'block');
-    ground.scale.setTo(6, 6);
+    const ground = blocks.create(0, game.world.height - 52, 'block');
+    ground.scale.setTo(game.world.width / ground.width, 1); // Stretch ground to screen width
     ground.body.immovable = true;
 
-    let ledge = blocks.create(400, 450, 'block');
-    ledge.body.immovable = true;
+    // Create random ledges with space between them
+    let ledges = [];
+    const ledgeCount = 5; // Number of ledges
+    const minDistance = 150; // Minimum distance between ledges
+    const totalHeight = game.world.height - 200; // Total available height for placing ledges
+    const ledgeSpacing = totalHeight / ledgeCount; // Space between each ledge
 
-    ledge = blocks.create(-75, 350, 'block');
-    ledge.body.immovable = true;
+    // Set maximum height for ledges to be below aliens
+    const alienHeight = 50; // Height of aliens
+    const maxLedgeHeight = game.world.height - alienHeight - 100; // Maximum height below aliens
 
-    ledge = blocks.create(100, 375, 'block');
-    ledge.body.immovable = true;
+    for (let i = 0; i < ledgeCount; i++) {
+        const x = Math.random() * (game.world.width - 200); // Horizontal position within screen limits
+        const y = Math.min(i * ledgeSpacing + 200, maxLedgeHeight); // Ensure ledge is below aliens
+
+        const ledge = blocks.create(x, y, 'block');
+
+        // Apply random width scaling for variety
+        const randomScale = Math.random() * (1.75 - 0.75) + 0.75; // Slightly larger minimum width for better platforming
+        ledge.scale.setTo(randomScale, 1); // Apply random width scale
+
+        ledge.body.immovable = true;
+        ledges.push(ledge);
+    }
 
     // Create player
     human = game.add.sprite(32, game.world.height - 150, 'human');
     game.physics.arcade.enable(human);
-    human.scale.setTo(0.5, 0.5);
+    human.scale.setTo(0.4, 0.4);
     human.body.bounce.y = 0.2;
     human.body.gravity.y = 800;
     human.body.collideWorldBounds = true;
@@ -55,10 +74,18 @@ function create() {
     stars.enableBody = true;
 
     for (let i = 0; i < 12; i++) {
-        const star = stars.create(i * 70, 0, 'star');
+        const star = stars.create(i * 60, 0, 'star');
         star.scale.setTo(0.5, 0.5);
         star.body.gravity.y = 1000;
         star.body.bounce.y = 0.3 + Math.random() * 0.2;
+    }
+
+    // Create hearts (lives) on the right
+    hearts = game.add.group();
+    const startX = game.world.width - lives * 32; // Align hearts on the right
+    for (let i = 0; i < lives; i++) {
+        const heart = hearts.create(startX + i * 24, 16, 'heart');
+        heart.scale.setTo(0.5, 0.5);
     }
 
     // Create aliens
@@ -80,6 +107,8 @@ function create() {
     game.time.events.loop(Phaser.Timer.SECOND / 60, moveAliens);
 
     // Alien shooting
+    arrows = game.add.group();
+    arrows.enableBody = true;
     game.time.events.loop(Phaser.Timer.SECOND, alienShoot);
 }
 
@@ -91,6 +120,7 @@ function update() {
     game.physics.arcade.collide(aliens, blocks);
 
     game.physics.arcade.overlap(human, stars, collectStar, null, this);
+    game.physics.arcade.overlap(human, arrows, player_injured, null, this);
 
     // Player movement
     if (cursors.left.isDown) {
@@ -119,55 +149,52 @@ function collectStar(human, star) {
 function moveAliens() {
     const alienSpeed = 70;
 
-    // Move aliens
     aliens.forEach(alien => {
-        // Each alien has its own random direction
         if (!alien.randomDirection) {
-            alien.randomDirection = Math.random() < 0.5 ? 1 : -1; // Set random direction initially
+            alien.randomDirection = Math.random() < 0.5 ? 1 : -1;
         }
         alien.x += alien.randomDirection * alienSpeed * game.time.physicsElapsed;
     });
 
-    // Check if aliens reached edge
     const firstAlien = aliens.getChildAt(0);
     const lastAlien = aliens.getChildAt(aliens.children.length - 1);
 
-    // If the first or last alien reaches the edge, change direction for all aliens
     if (firstAlien.x <= 0 || lastAlien.x >= game.world.width - lastAlien.width) {
         aliens.forEach(alien => {
-            // Reverse the direction for each alien
             alien.randomDirection *= -1;
         });
     }
 
-    // Prevent aliens from passing the edge after the direction change
     aliens.forEach(alien => {
-        // Ensure aliens stop at the right edge
         if (alien.x > game.world.width - alien.width) {
             alien.x = game.world.width - alien.width;
         }
-        // Ensure aliens stop at the left edge
         if (alien.x < 0) {
             alien.x = 0;
         }
     });
 }
 
-
-
 function alienShoot() {
     aliens.forEach(alien => {
         if (Math.random() < 0.05) {
-            const arrow = game.add.sprite(alien.x + alien.width / 2, alien.y + alien.height, 'arrow');
-            game.physics.arcade.enable(arrow);
-            arrow.scale.setTo(0.3, 0.3); // Scale down arrow
+            const arrow = arrows.create(alien.x + alien.width / 2, alien.y + alien.height, 'arrow');
+            arrow.scale.setTo(0.3, 0.3);
             arrow.body.velocity.y = 300;
-
-            // // Check collision with player
-            // game.physics.arcade.overlap(arrow, human, () => {
-            //     alert('Game Over!');
-            //     game.destroy();
-            // });
         }
     });
+}
+
+function player_injured(human, arrow) {
+    arrow.kill();
+    lives--;
+
+    if (hearts.children.length > 0) {
+        hearts.getChildAt(hearts.children.length - 1).kill();
+    }
+
+    if (lives <= 0) {
+        alert('Game Over');
+        game.destroy();
+    }
 }
