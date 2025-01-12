@@ -22,11 +22,21 @@ function preload() {
     game.load.image('alien', './images/alien.png', { crossOrigin: 'anonymous' });
     game.load.image('arrow', './images/arrow.png', { crossOrigin: 'anonymous' });
     game.load.image('heart', './images/heart.png', { crossOrigin: 'anonymous' });
+    game.load.image('Glaxia', './images/Glaxia.jpg', { crossOrigin: 'anonymous' }); // טוען את תמונת הרקע
+    game.load.image('background', './images/background.jpg', { crossOrigin: 'anonymous' });
 }
 
 function create() {
-    game.stage.backgroundColor = '#4488AA';
-    game.physics.startSystem(Phaser.Physics.ARCADE);
+    // הגדר את הרקע עם תמונת ה-background
+    const Background = game.add.sprite(0, 0, 'background');
+    Background.width = game.world.width; // מתיחה לרוחב המסך
+    Background.height = game.world.height; // מתיחה לגובה המסך
+
+    // שינוי הרקע באזור העליון (לחייזרים)
+    const galaxiaBackground = game.add.sprite(0, 0, 'Glaxia');
+    galaxiaBackground.width = game.world.width; // מתיחה לרוחב המסך
+    galaxiaBackground.height = 170; // גובה ספציפי שמתאים למיקום החייזרים
+
 
     // Create blocks
     blocks = game.add.group();
@@ -179,7 +189,7 @@ function alienShoot() {
     aliens.forEach(alien => {
         if (Math.random() < 0.05) {
             const arrow = arrows.create(alien.x + alien.width / 2, alien.y + alien.height, 'arrow');
-            arrow.scale.setTo(0.3, 0.3);
+            arrow.scale.setTo(0.2, 0.2);
             arrow.body.velocity.y = 300;
         }
     });
